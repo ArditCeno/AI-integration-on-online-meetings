@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Emotion-Aware Conference Dashboard </title>
+
+  <style>
+    :root{
+      --page-bg: #8b0000;                /* red background */
+      --card-bg: rgba(0,0,0,0.80);       /* black cards */
+      --card-bg2: rgba(0,0,0,0.60);
+
+      --bg-base: #000000;
+      --accent: #ffffff;
+      --accent2: rgba(255,255,255,0.75);
+      --glow: rgba(255,255,255,0.22);
+
+      --text: rgba(255,255,255,0.92);
+      --muted: rgba(255,255,255,0.70);
+      --stroke: rgba(255,255,255,0.16);
+      --shadow: 0 18px 48px rgba(0,0,0,0.35);
+      --radius: 18px;
+
+      /* Kept for compatibility with existing emotion JS (not used by background anymore) */
+      --g1: rgba(255,215,0,0.00);
+      --g2: rgba(255,236,120,0.00);
+      --g3: rgba(80,160,255,0.00);
+      --g4: rgba(167,139,250,0.00);
+      --g5: rgba(248,113,113,0.00);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+
+      /* solid background with slow transitions */
+      background: var(--page-bg);
+      transition: background 30s linear;
+    }
+
+    code{ color: rgba(255,255,255,0.78); }
+
+    /* Top bar */
+    .topbar{
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding: 18px 20px;
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: center;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.50), rgba(0,0,0,0.25));
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .brand{ display:flex; gap:12px; align-items:center; }
+    .dot{
+      width: 12px; height:12px; border-radius:999px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      box-shadow: 0 0 0 6px rgba(255,255,255,0.08), 0 0 22px var(--glow);
+    }
+    .brand h1{ margin:0; font-size:15px; font-weight: 800; }
+    .brand p{ margin:0; font-size:12px; color: var(--muted); }
+
+    .topControls{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    }
+    .pill{
+      padding: 8px 10px;
+      border:1px solid var(--stroke);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.10);
+      display:flex; flex-direction:column; line-height: 1.05;
+      min-width: 120px;
+    }
+    .pill small{ color: var(--muted); font-size: 11px; }
+    .pill strong{ font-size: 13px; }
+
+    /* Buttons */
+    button{
+      appearance:none;
+      border:1px solid var(--stroke);
+      background: rgba(255,255,255,0.10);
+      color: var(--text);
+      padding: 9px 12px;
+      border-radius: 12px;
+      cursor:pointer;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.22);
+      transition: transform 120ms ease, background 200ms ease, border-color 200ms ease, opacity 200ms ease;
+      user-select:none;
+    }
+    button:hover{ transform: translateY(-1px); }
+    button:active{ transform: translateY(0px); }
+    button:disabled{ opacity: 0.55; cursor:not-allowed; transform:none; }
+
+    button.primary{
+      border-color: rgba(255,255,255,0.35);
+      background: linear-gradient(135deg, rgba(255,255,255,0.14), rgba(255,255,255,0.08));
+    }
+    button.danger{
+      border-color: rgba(248,113,113,0.45);
+      background: linear-gradient(135deg, rgba(248,113,113,0.16), rgba(248,113,113,0.08));
+    }
+
+    /* Grid */
+    .grid{
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 16px 20px 22px;
+      display:grid;
+      grid-template-columns: 1.45fr 0.95fr;
+      gap: 14px;
+    }
+    .col{ display:grid; gap:14px; }
+
+    @media (max-width: 980px){
+      .grid{ grid-template-columns: 1fr; }
+      .pill{ min-width: 100px; }
+    }
+
+    /* Cards */
+    .card{
+      background: linear-gradient(180deg, var(--card-bg), var(--card-bg2));
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .cardHead{
+      padding: 12px 14px;
+      display:flex;
+      justify-content: space-between;
+      align-items:center;
+      border-bottom: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.06);
+    }
+    .cardHead h2{ margin:0; font-size: 13px; font-weight: 800; }
+    .pad{ padding: 12px; }
+    .muted{ color: var(--muted); font-size: 12px; }
+    .hint{
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      opacity: 0.95;
+    }
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
+
+    /* Badges */
+    .badge{
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.10);
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    /* Video */
+    .videoWindow{
+      border-radius: 16px;
+      overflow:hidden;
+      border: 2px solid var(--stroke);
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 0 22px var(--glow);
+      background: rgba(0,0,0,0.22);
+      position: relative;
+      transition: transform 220ms ease, box-shadow 300ms ease;
+    }
+    .videoWindow.is-peak{
+      transform: scale(1.01);
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.08), 0 0 50px var(--glow);
+    }
+    video{
+      width:100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      background: rgba(0,0,0,0.25);
+      display:block;
+    }
+
+    .overlay{
+      position:absolute;
+      top: 10px; left: 10px;
+      display:flex; gap:8px; flex-wrap:wrap;
+      z-index: 2;
+    }
+    .chip{
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.40);
+      border: 1px solid rgba(255,255,255,0.14);
+      backdrop-filter: blur(6px);
+    }
+
+    /* Meters */
+    .meters{ margin-top: 12px; display:grid; gap:10px; }
+    .meter label{
+      display:flex; justify-content: space-between;
+      font-size: 12px; color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .bar{
+      height: 10px;
+      border-radius: 999px;
+      overflow:hidden;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.10);
+    }
+    .bar > div{
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      box-shadow: 0 0 18px var(--glow);
+      transition: width 280ms ease;
+    }
+
+    /* Audio */
+    .audioGrid{ display:grid; grid-template-columns: 1fr 180px; gap: 12px; }
+    @media (max-width: 980px){ .audioGrid{ grid-template-columns: 1fr; } }
+    .audioPanel audio{ width:100%; margin-top: 6px; }
+    .miniRow{ margin-top: 10px; display:flex; gap: 10px; flex-wrap: wrap; }
+    .miniStat{
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.08);
+      min-width: 120px;
+    }
+    .miniStat small{ color: var(--muted); display:block; font-size: 11px; }
+    .miniStat strong{ font-size: 13px; }
+    .btnCol{ display:grid; gap:10px; align-content:start; }
+
+    /* Captions */
+    .subtitles .subtitleBox{
+      height: 220px;
+      overflow:auto;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background: rgba(0,0,0,0.25);
+      padding: 10px;
+    }
+    .subtitleLine{ margin:0 0 10px; }
+    .subtitleLine small{ color: var(--muted); font-size: 11px; }
+    .subtitleLine { font-size: 13px; line-height: 1.3; }
+
+    /* Graph */
+    .canvasShell{
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background: rgba(0,0,0,0.20);
+      overflow:hidden;
+    }
+    canvas{ width:100%; height: 360px; display:block; }
+
+    /* Speaker */
+    .speaker .field{ display:grid; gap:6px; margin-bottom: 10px; }
+    .speaker label{ font-size: 12px; color: var(--muted); }
+    .speaker input{
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: rgba(255,255,255,0.10);
+      color: var(--text);
+      outline: none;
+    }
+    .speaker input:focus{
+      border-color: rgba(255,255,255,0.35);
+      box-shadow: 0 0 0 3px rgba(255,255,255,0.10);
+    }
+
+    /* Footer */
+    .foot{
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 0 20px 22px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+  </style>
+</head>
+
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="dot"></div>
+    <div>
+      <h1>Emotion-Aware Conference Dashboard 🇮🇹🍕&🇦🇱🦅 </h1>
+      <p>One-file demo: Video · Captions · Audio · Emotion UI · Graph · Speaker Info</p>
+    </div>
+  </div>
+
+  <div class="topControls">
+   
+
+    <button id="btnStart" class="primary">Start</button>
+    <button id="btnStop" disabled>Stop</button>
+  </div>
+</header>
+
+<main class="grid">
+  <!-- LEFT COLUMN -->
+  <section class="col left">
+    <!-- VIDEO -->
+    <div class="card">
+      <div class="cardHead">
+        <h2>Conference video</h2>
+        <span class="badge" id="emotionBadge">Emotion: —</span>
+      </div>
+
+      <div class="pad">
+        <div class="videoWindow" id="videoWindow">
+          <div class="overlay">
+            <span class="chip" id="faceEmotion">Face: —</span>
+            <span class="chip" id="voiceEmotion">Voice: —</span>
+          </div>
+          <video id="video" autoplay playsinline muted></video>
+        </div>
+
+        <div class="meters">
+          <div class="meter">
+            <label><span>Facial signal</span><span id="facePct">0%</span></label>
+            <div class="bar"><div id="faceBar"></div></div>
+          </div>
+          <div class="meter">
+            <label><span>Voice signal</span><span id="voicePct">0%</span></label>
+            <div class="bar"><div id="voiceBar"></div></div>
+          </div>
+        </div>
+
+        <div class="hint" id="videoHint">
+          Tip: Grant camera permission when prompted.
+        </div>
+      </div>
+    </div>
+
+    <!-- AUDIO -->
+    <div class="card">
+      <div class="cardHead">
+        <h2>Audio recording</h2>
+        <span class="badge" id="recBadge">not recording</span>
+      </div>
+
+      <div class="pad">
+        <div class="audioGrid">
+          <div class="audioPanel">
+            <p class="muted">Record microphone audio and preview it here.</p>
+            <audio id="audioPlayer" controls></audio>
+            <div class="hint" id="audioHint">Press Start to record.</div>
+
+            <div class="miniRow">
+              <div class="miniStat">
+                <small>Duration</small>
+                <strong id="recTime">00:00</strong>
+              </div>
+              <div class="miniStat">
+                <small>Last size</small>
+                <strong id="recSize">—</strong>
+              </div>
+              <div class="miniStat">
+                <small>Format</small>
+                <strong id="recFmt">—</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="btnCol">
+            <button id="btnSave" class="primary" disabled>Save</button>
+            <button id="btnUpload" disabled>Upload</button>
+            <button id="btnDelete" class="danger" disabled>Delete</button>
+            <div class="hint">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RIGHT COLUMN -->
+  <section class="col right">
+    <!-- CAPTIONS -->
+    <div class="card subtitles">
+      <div class="cardHead">
+        <h2>Live subtitles</h2>
+        <span class="badge" id="sttBadge">checking…</span>
+      </div>
+
+      <div class="pad">
+        <div id="subtitleBox" class="subtitleBox" aria-live="polite"></div>
+
+        <div class="row" style="margin-top:10px">
+          <button id="btnCaptions" class="primary">Start captions</button>
+          <button id="btnClearCaps">Clear</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- GRAPH -->
+    <div class="card">
+      <div class="cardHead">
+        <h2>Emotional profile (node graph)</h2>
+        <span class="badge" id="graphBadge">nodes: —</span>
+      </div>
+
+      <div class="pad">
+        <div class="canvasShell">
+          <canvas id="graph"></canvas>
+        </div>
+
+        <div class="row" style="margin-top:10px">
+          <button id="btnFreeze">Freeze graph</button>
+          <button id="btnResetGraph">Reset</button>
+        </div>
+
+        <div class="hint">
+          Canvas force-graph responds to emotion + energy.
+        </div>
+      </div>
+    </div>
+
+    <!-- SPEAKER INFO -->
+    <div class="card">
+      <div class="cardHead">
+        <h2>Speaker info</h2>
+        <span class="badge">saved locally</span>
+      </div>
+
+      <div class="pad speaker">
+        <div class="field">
+          <label for="firstName">Name</label>
+          <input id="firstName" placeholder="e.g., Ardit/Luca" />
+        </div>
+        <div class="field">
+          <label for="lastName">Surname</label>
+          <input id="lastName" placeholder="e.g., Ceno/Porfiri" />
+        </div>
+        <div class="field">
+          <label for="age">Age</label>
+          <input id="age" type="number" min="1" max="120" placeholder="e.g., 20" />
+        </div>
+        <div class="field">
+          <label for="topic">Conference topic</label>
+          <input id="topic" placeholder="e.g., Hackathone" />
+        </div>
+
+        <div class="row">
+          <button id="btnSaveSpeaker" class="primary">Save locally</button>
+          <button id="btnClearSpeaker">Clear</button>
+        </div>
+
+        <div class="hint">
+          Stored in LocalStorage.
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+    Created by BaggyJeans for Hackathone Tirana 2026
+</footer>
+
+<script>
+   //Helpers
+function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+function lerp(a,b,k){ return a + (b-a)*k; }
+function pad2(n){ return String(n).padStart(2,"0"); }
+function $(id){ return document.getElementById(id); }
+
+function safeText(el, text){ if(el) el.textContent = text; }
+
+// Emotion Themes
+const THEMES = {
+  neutral: {
+    accent:"#6ee7ff", accent2:"#a78bfa", glow:"rgba(110,231,255,0.45)",
+    g1:"rgba(255,215,0,0.28)",   // gold
+    g2:"rgba(255,236,120,0.22)", // yellow
+    g3:"rgba(80,160,255,0.20)",  // blue
+    g4:"rgba(167,139,250,0.22)", // purple
+    g5:"rgba(248,113,113,0.18)"  // red
+  },
+  happy: {
+    accent:"#34d399", accent2:"#a7f3d0", glow:"rgba(52,211,153,0.45)",
+    g1:"rgba(255,215,0,0.38)",
+    g2:"rgba(255,236,120,0.30)",
+    g3:"rgba(80,160,255,0.18)",
+    g4:"rgba(167,139,250,0.18)",
+    g5:"rgba(248,113,113,0.18)"
+  },
+  sad: {
+    accent:"#60a5fa", accent2:"#93c5fd", glow:"rgba(96,165,250,0.45)",
+    g1:"rgba(255,215,0,0.18)",
+    g2:"rgba(255,236,120,0.16)",
+    g3:"rgba(80,160,255,0.30)",
+    g4:"rgba(167,139,250,0.24)",
+    g5:"rgba(248,113,113,0.16)"
+  },
+  angry: {
+    accent:"#fb7185", accent2:"#fda4af", glow:"rgba(251,113,133,0.55)",
+    g1:"rgba(255,215,0,0.20)",
+    g2:"rgba(255,236,120,0.16)",
+    g3:"rgba(80,160,255,0.16)",
+    g4:"rgba(167,139,250,0.18)",
+    g5:"rgba(248,113,113,0.34)"
+  },
+  surprised: {
+    accent:"#fbbf24", accent2:"#fde68a", glow:"rgba(251,191,36,0.55)",
+    g1:"rgba(255,215,0,0.40)",
+    g2:"rgba(255,236,120,0.34)",
+    g3:"rgba(80,160,255,0.18)",
+    g4:"rgba(167,139,250,0.18)",
+    g5:"rgba(248,113,113,0.18)"
+  },
+  fearful: {
+    accent:"#a78bfa", accent2:"#c4b5fd", glow:"rgba(167,139,250,0.55)",
+    g1:"rgba(255,215,0,0.18)",
+    g2:"rgba(255,236,120,0.16)",
+    g3:"rgba(80,160,255,0.18)",
+    g4:"rgba(167,139,250,0.30)",
+    g5:"rgba(248,113,113,0.24)"
+  }
+};
+
+function setCssVar(name, value){
+  document.documentElement.style.setProperty(name, value);
+}
+
+function updateEmotionUI({face=0, voice=0, emotion="neutral"}){
+  const t = THEMES[emotion] || THEMES.neutral;
+
+  // (background gradient vars kept for compatibility; not used by body background anymore)
+  setCssVar("--g1", t.g1);
+  setCssVar("--g2", t.g2);
+  setCssVar("--g3", t.g3);
+  setCssVar("--g4", t.g4);
+  setCssVar("--g5", t.g5);
+
+  // Update accents used by UI + graph
+  setCssVar("--accent", t.accent);
+  setCssVar("--accent2", t.accent2);
+  setCssVar("--glow", t.glow);
+
+  // meters
+  const f = Math.round(clamp01(face) * 100);
+  const v = Math.round(clamp01(voice) * 100);
+  safeText($("facePct"), `${f}%`);
+  safeText($("voicePct"), `${v}%`);
+  const fb = $("faceBar"); if (fb) fb.style.width = `${f}%`;
+  const vb = $("voiceBar"); if (vb) vb.style.width = `${v}%`;
+
+  // labels
+  safeText($("emotionBadge"), `emotion: ${emotion}`);
+  safeText($("faceEmotion"), `Face: ${emotion}`);
+  safeText($("voiceEmotion"), `Voice: ${voice > 0.6 ? "excited" : voice > 0.35 ? "steady" : "calm"}`);
+  safeText($("accentChip"), `Accent: ${t.accent}`);
+
+  // subtle “peak” motion on high energy
+  const energy = (clamp01(face) + clamp01(voice)) / 2;
+  $("videoWindow")?.classList.toggle("is-peak", energy > 0.78);
+}
+
+ //  Mock Emotion Data (no backend)
+const EMOTIONS = ["neutral","happy","sad","angry","surprised","fearful"];
+let tTick = 0;
+let mockState = { face:0.35, voice:0.35, emotion:"neutral" };
+
+async function fetchEmotionData(){
+  tTick += 1;
+  if (tTick % 7 === 0){
+    mockState.emotion = EMOTIONS[Math.floor(Math.random() * EMOTIONS.length)];
+  }
+  const faceTarget = clamp01(0.15 + Math.random() * 0.85);
+  const voiceTarget = clamp01(0.15 + Math.random() * 0.85);
+  mockState.face  = clamp01(lerp(mockState.face,  faceTarget,  0.22));
+  mockState.voice = clamp01(lerp(mockState.voice, voiceTarget, 0.22));
+  return { face: mockState.face, voice: mockState.voice, emotion: mockState.emotion };
+}
+
+  // Camera (video only)
+let videoStream = null;
+
+async function startCamera(){
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error("getUserMedia not supported in this browser.");
+  }
+  videoStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:false });
+  const v = $("video");
+  if (v) v.srcObject = videoStream;
+}
+
+function stopCamera(){
+  if (!videoStream) return;
+  try { videoStream.getTracks().forEach(tr => tr.stop()); } catch {}
+  videoStream = null;
+  const v = $("video");
+  if (v) v.srcObject = null;
+}
+
+  // Audio Recording (MediaRecorder)
+let recorder = null;
+let chunks = [];
+let lastBlob = null;
+let lastUrl = null;
+let timerId = null;
+let startTs = 0;
+let audioStream = null;
+
+function setRecBadge(text){ safeText($("recBadge"), text); }
+
+function setButtonsEnabled(enabled){
+  ["btnSave","btnUpload","btnDelete"].forEach(id => {
+    const el = $(id);
+    if (el) el.disabled = !enabled;
+  });
+}
+
+function cleanupPlayerUrl(){
+  if (lastUrl){
+    try { URL.revokeObjectURL(lastUrl); } catch {}
+    lastUrl = null;
+  }
+}
+
+function updateTimer(){
+  const now = Date.now();
+  const s = Math.floor((now - startTs) / 1000);
+  const mm = Math.floor(s / 60);
+  const ss = s % 60;
+  safeText($("recTime"), `${pad2(mm)}:${pad2(ss)}`);
+}
+
+function setMeta(sizeBytes, mimeType){
+  safeText($("recSize"), sizeBytes ? `${Math.round(sizeBytes / 1024)} KB` : "—");
+  safeText($("recFmt"), mimeType || "—");
+}
+
+function pickMimeType(){
+  const candidates = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/ogg;codecs=opus",
+    "audio/ogg"
+  ];
+  if (!window.MediaRecorder || !MediaRecorder.isTypeSupported) return "";
+  for (const c of candidates){
+    if (MediaRecorder.isTypeSupported(c)) return c;
+  }
+  return "";
+}
+
+async function ensureAudioStream(){
+  if (audioStream) return audioStream;
+  audioStream = await navigator.mediaDevices.getUserMedia({ audio:true, video:false });
+  return audioStream;
+}
+
+async function startRecording(){
+  if (!window.MediaRecorder){
+    throw new Error("MediaRecorder not supported in this browser.");
+  }
+
+  safeText($("audioHint"), "Requesting microphone…");
+  const stream = await ensureAudioStream();
+
+  chunks = [];
+  lastBlob = null;
+  cleanupPlayerUrl();
+  setButtonsEnabled(false);
+
+  const mime = pickMimeType();
+  recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+
+  recorder.ondataavailable = (e) => {
+    if (e.data && e.data.size) chunks.push(e.data);
+  };
+
+  recorder.onstop = () => {
+    lastBlob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+    lastUrl = URL.createObjectURL(lastBlob);
+
+    const player = $("audioPlayer");
+    if (player) player.src = lastUrl;
+
+    safeText($("audioHint"), `Recorded ${Math.round(lastBlob.size / 1024)} KB (${recorder.mimeType || "unknown"}).`);
+    setMeta(lastBlob.size, recorder.mimeType || "");
+    setButtonsEnabled(true);
+  };
+
+  recorder.start(250);
+  setRecBadge("recording…");
+
+  startTs = Date.now();
+  safeText($("recTime"), "00:00");
+  timerId = setInterval(updateTimer, 300);
+
+  safeText($("audioHint"), "Recording…");
+  setMeta(null, recorder.mimeType || "");
+}
+
+function stopRecording(){
+  if (timerId) clearInterval(timerId);
+  timerId = null;
+
+  if (recorder && recorder.state !== "inactive"){
+    try { recorder.stop(); } catch {}
+  }
+  setRecBadge("not recording");
+}
+
+function stopAudioStream(){
+  if (!audioStream) return;
+  try { audioStream.getTracks().forEach(t => t.stop()); } catch {}
+  audioStream = null;
+}
+
+function clearRecording(){
+  chunks = [];
+  lastBlob = null;
+  cleanupPlayerUrl();
+
+  const player = $("audioPlayer");
+  if (player){
+    player.removeAttribute("src");
+    try { player.load(); } catch {}
+  }
+
+  safeText($("audioHint"), "Recording cleared.");
+  safeText($("recTime"), "00:00");
+  setMeta(null, null);
+  setButtonsEnabled(false);
+}
+
+function downloadRecording(){
+  if (!lastBlob) return;
+  const ext = (lastBlob.type || "").includes("ogg") ? "ogg" : "webm";
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(lastBlob);
+  a.download = `conference-audio.${ext}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => { try { URL.revokeObjectURL(a.href); } catch {} }, 2000);
+}
+
+// Placeholder upload (no backend)
+async function uploadAudioPlaceholder(){
+  alert("Upload is a placeholder in this one-file demo (no backend endpoint).");
+}
+
+ //  Captions (Web Speech API)
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+let captionsRunning = false;
+let captionsLang = "en-US";
+let lastInterimEl = null;
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, (m) =>
+    ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;", "'":"&#039;" }[m])
+  );
+}
+
+function setSttBadge(text){ safeText($("sttBadge"), text); }
+
+function initCaptions(){
+  const btn = $("btnCaptions");
+  if (!SpeechRecognition){
+    setSttBadge("SpeechRecognition: not supported");
+    if (btn) btn.disabled = true;
+    return;
+  }
+
+  setSttBadge("SpeechRecognition: ready");
+  recognition = new SpeechRecognition();
+  recognition.lang = captionsLang;
+  recognition.interimResults = true;
+  recognition.continuous = true;
+
+  recognition.onresult = (event) => {
+    const box = $("subtitleBox");
+    if (!box) return;
+
+    let interim = "";
+    let final = "";
+
+    for (let i = event.resultIndex; i < event.results.length; i++){
+      const res = event.results[i];
+      if (res.isFinal) final += res[0].transcript;
+      else interim += res[0].transcript;
+    }
+
+    if (final.trim()){
+      const p = document.createElement("p");
+      p.className = "subtitleLine";
+      p.innerHTML = `<small>${new Date().toLocaleTimeString()}</small><br>${escapeHtml(final.trim())}`;
+      box.appendChild(p);
+      box.scrollTop = box.scrollHeight;
+      lastInterimEl = null;
+    }
+
+    if (interim.trim()){
+      if (!lastInterimEl){
+        lastInterimEl = document.createElement("p");
+        lastInterimEl.className = "subtitleLine";
+        lastInterimEl.style.opacity = "0.7";
+        box.appendChild(lastInterimEl);
+      }
+      lastInterimEl.innerHTML = `<small>${new Date().toLocaleTimeString()} (live)</small><br>${escapeHtml(interim.trim())}`;
+      box.scrollTop = box.scrollHeight;
+    }
+  };
+
+  recognition.onerror = (e) => {
+    setSttBadge(`SpeechRecognition: error (${e.error})`);
+  };
+
+  recognition.onend = () => {
+    if (captionsRunning){
+      setTimeout(() => { try { recognition.start(); } catch {} }, 500);
+    }
+  };
+}
+
+function toggleCaptions(){
+  if (!recognition) return;
+  captionsRunning = !captionsRunning;
+
+  const btn = $("btnCaptions");
+  if (btn) btn.textContent = captionsRunning ? "Stop captions" : "Start captions";
+  setSttBadge(captionsRunning ? "SpeechRecognition: listening…" : "SpeechRecognition: ready");
+
+  try{
+    if (captionsRunning) recognition.start();
+    else recognition.stop();
+  } catch {}
+}
+
+function clearCaptions(){
+  const box = $("subtitleBox");
+  if (box) box.innerHTML = "";
+  lastInterimEl = null;
+}
+
+function getCss(name){
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+function hexToRgba(hex, a){
+  const h = String(hex || "#000000").replace("#", "");
+  const r = parseInt(h.slice(0,2), 16);
+  const g = parseInt(h.slice(2,4), 16);
+  const b = parseInt(h.slice(4,6), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+class EmotionGraph{
+  constructor(canvas){
+    this.canvas = canvas;
+    this.ctx = canvas.getContext("2d");
+    this.nodes = [];
+    this.links = [];
+    this.running = true;
+    this._destroyed = false;
+    this._rafId = null;
+
+    this._resizeObserver = new ResizeObserver(() => this.fit());
+    if (canvas?.parentElement) this._resizeObserver.observe(canvas.parentElement);
+
+    this.seed();
+    this.fit();
+    this._rafId = requestAnimationFrame(() => this.draw());
+  }
+
+  seed(){
+    const labels = ["Valence","Arousal","Focus","Stress","Engagement","Calm"];
+    const rect = this.canvas.getBoundingClientRect();
+    const w = rect.width || 800;
+    const h = rect.height || 420;
+
+    this.nodes = labels.map((label, i) => ({
+      id:i,
+      label,
+      x:(Math.random()*0.7+0.15)*w,
+      y:(Math.random()*0.7+0.15)*h,
+      vx:0, vy:0,
+      value:0.5
+    }));
+
+    this.links = [];
+    for (let i=0;i<this.nodes.length;i++){
+      for (let j=i+1;j<this.nodes.length;j++){
+        if (Math.random() < 0.42) this.links.push({a:i,b:j,w:Math.random()*0.7+0.2});
+      }
+    }
+    safeText($("graphBadge"), `nodes: ${this.nodes.length}`);
+  }
+
+  fit(){
+    const rect = this.canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    this.canvas.width = Math.max(600, Math.floor(rect.width * dpr));
+    this.canvas.height = Math.max(360, Math.floor(rect.height * dpr));
+    this.ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+
+  setEmotion({face=0, voice=0, emotion="neutral"}){
+    const base = (face + voice)/2;
+
+    const map = {
+      neutral:   { valence:.52, arousal:.45, stress:.35, calm:.55 },
+      happy:     { valence:.80, arousal:.65, stress:.20, calm:.55 },
+      sad:       { valence:.25, arousal:.35, stress:.45, calm:.40 },
+      angry:     { valence:.18, arousal:.82, stress:.75, calm:.18 },
+      surprised: { valence:.60, arousal:.88, stress:.35, calm:.35 },
+      fearful:   { valence:.22, arousal:.70, stress:.70, calm:.20 }
+    };
+    const m = map[emotion] || map.neutral;
+
+    const targets = [
+      m.valence,
+      m.arousal,
+      clamp01(.55 + (voice - .5) * .35),   // focus
+      m.stress,
+      clamp01(.45 + (base - .5) * .5),     // engagement
+      m.calm
+    ];
+
+    this.nodes.forEach((n,i)=>{
+      const t = targets[i] ?? .5;
+      n.value = clamp01(n.value * .75 + t * .25);
+    });
+
+    this.links.forEach(L=>{
+      L.w = clamp01(L.w * .85 + (0.2 + base * 0.8) * .15);
+    });
+  }
+
+  step(){
+    const rect = this.canvas.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
+
+    const repulsion = 2400;
+    const spring = 0.0035;
+    const damping = 0.90;
+
+    for (let i=0;i<this.nodes.length;i++){
+      const A = this.nodes[i];
+      for (let j=i+1;j<this.nodes.length;j++){
+        const B = this.nodes[j];
+        const dx = A.x - B.x;
+        const dy = A.y - B.y;
+        const d2 = dx*dx + dy*dy + 0.01;
+        const f = repulsion / d2;
+        const inv = 1 / Math.sqrt(d2);
+        const fx = dx * inv * f;
+        const fy = dy * inv * f;
+        A.vx += fx; A.vy += fy;
+        B.vx -= fx; B.vy -= fy;
+      }
+    }
+
+    for (const L of this.links){
+      const A = this.nodes[L.a];
+      const B = this.nodes[L.b];
+      const dx = B.x - A.x;
+      const dy = B.y - A.y;
+      const dist = Math.sqrt(dx*dx + dy*dy) + 0.001;
+      const desired = 140 + (1 - L.w) * 80;
+      const force = (dist - desired) * spring;
+      const fx = (dx / dist) * force;
+      const fy = (dy / dist) * force;
+      A.vx += fx; A.vy += fy;
+      B.vx -= fx; B.vy -= fy;
+    }
+
+    for (const n of this.nodes){
+      n.vx *= damping;
+      n.vy *= damping;
+      n.x += n.vx;
+      n.y += n.vy;
+
+      const pad = 40;
+      n.x = Math.max(pad, Math.min(w - pad, n.x));
+      n.y = Math.max(pad, Math.min(h - pad, n.y));
+    }
+  }
+
+  draw(){
+    if (this._destroyed) return;
+    if (this.running) this.step();
+
+    const ctx = this.ctx;
+    const rect = this.canvas.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
+
+    ctx.clearRect(0,0,w,h);
+
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,0.14)";
+    for (const L of this.links){
+      const A = this.nodes[L.a];
+      const B = this.nodes[L.b];
+      ctx.globalAlpha = 0.25 + L.w * 0.25;
+      ctx.beginPath();
+      ctx.moveTo(A.x, A.y);
+      ctx.lineTo(B.x, B.y);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    const c1 = getCss("--accent");
+    const c2 = getCss("--accent2");
+
+    for (const n of this.nodes){
+      const r = 14 + n.value * 12;
+
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r + 6, 0, Math.PI*2);
+      ctx.fillStyle = "rgba(0,0,0,0.25)";
+      ctx.fill();
+
+      const g = ctx.createLinearGradient(n.x - r, n.y - r, n.x + r, n.y + r);
+      g.addColorStop(0, hexToRgba(c1, 0.55));
+      g.addColorStop(1, hexToRgba(c2, 0.55));
+
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r, 0, Math.PI*2);
+      ctx.fillStyle = g;
+      ctx.fill();
+
+      ctx.fillStyle = getCss("--text");
+      ctx.font = "12px system-ui";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(n.label, n.x, n.y);
+    }
+
+    this._rafId = requestAnimationFrame(() => this.draw());
+  }
+
+  toggleFreeze(){ this.running = !this.running; return this.running; }
+  reset(){ this.seed(); }
+  destroy(){
+    this._destroyed = true;
+    if (this._rafId) { try { cancelAnimationFrame(this._rafId); } catch {} }
+    try { this._resizeObserver.disconnect(); } catch {}
+  }
+}
+
+// Speaker
+function loadSpeaker(){
+  const raw = localStorage.getItem("speakerInfo");
+  if (!raw) return;
+  try{
+    const d = JSON.parse(raw);
+    $("firstName").value = d.firstName || "";
+    $("lastName").value  = d.lastName || "";
+    $("age").value       = d.age || "";
+    $("topic").value     = d.topic || "";
+  } catch {}
+}
+
+function saveSpeaker(){
+  const d = {
+    firstName: $("firstName").value.trim(),
+    lastName: $("lastName").value.trim(),
+    age: $("age").value.trim(),
+    topic: $("topic").value.trim()
+  };
+  localStorage.setItem("speakerInfo", JSON.stringify(d));
+}
+
+function clearSpeaker(){
+  $("firstName").value = "";
+  $("lastName").value = "";
+  $("age").value = "";
+  $("topic").value = "";
+  localStorage.removeItem("speakerInfo");
+}
+
+// App controls
+let loopId = null;
+let graph = null;
+
+function setStatus(text){ safeText($("status"), text); }
+
+function setRunningUI(running){
+  const startBtn = $("btnStart");
+  const stopBtn = $("btnStop");
+  if (startBtn) startBtn.disabled = running;
+  if (stopBtn) stopBtn.disabled = !running;
+}
+
+async function startAll(){
+  setRunningUI(true);
+  setStatus("Starting…");
+
+  // init graph once
+  if (!graph){
+    graph = new EmotionGraph($("graph"));
+  }
+
+  // init captions once
+  initCaptions();
+
+  // restore speaker info
+  loadSpeaker();
+
+  // start camera
+  try{
+    await startCamera();
+    safeText($("videoHint"), "Camera started.");
+  } catch (e){
+    safeText($("videoHint"), `Camera error: ${e.message || e}`);
+  }
+
+  // start recording audio
+  try{
+    await startRecording();
+  } catch (e){
+    safeText($("audioHint"), `Audio error: ${e.message || e}`);
+  }
+
+  // update loop (emotion mock)
+  if (loopId) clearInterval(loopId);
+  loopId = setInterval(async () => {
+    const data = await fetchEmotionData();
+    updateEmotionUI(data);
+    graph?.setEmotion(data);
+  }, 900);
+
+  setStatus("Running");
+}
+
+function stopAll(){
+  setRunningUI(false);
+  setStatus("Stopping…");
+
+  if (loopId) clearInterval(loopId);
+  loopId = null;
+
+  try { stopRecording(); } catch {}
+  try { stopAudioStream(); } catch {}
+  try { stopCamera(); } catch {}
+
+  setStatus("Idle");
+}
+
+// Buttons
+$("btnStart")?.addEventListener("click", startAll);
+$("btnStop")?.addEventListener("click", stopAll);
+
+$("btnSave")?.addEventListener("click", downloadRecording);
+$("btnUpload")?.addEventListener("click", uploadAudioPlaceholder);
+$("btnDelete")?.addEventListener("click", clearRecording);
+
+$("btnCaptions")?.addEventListener("click", toggleCaptions);
+$("btnClearCaps")?.addEventListener("click", clearCaptions);
+
+$("btnFreeze")?.addEventListener("click", () => {
+  const r = graph?.toggleFreeze();
+  if ($("btnFreeze")) $("btnFreeze").textContent = r ? "Freeze graph" : "Unfreeze graph";
+});
+
+$("btnResetGraph")?.addEventListener("click", () => graph?.reset());
+
+$("btnSaveSpeaker")?.addEventListener("click", saveSpeaker);
+$("btnClearSpeaker")?.addEventListener("click", clearSpeaker);
+
+// Initial UI state
+setRunningUI(false);
+setStatus("Idle");
+updateEmotionUI({ face:0.25, voice:0.25, emotion:"neutral" });
+</script>
+</body>
+</html>
